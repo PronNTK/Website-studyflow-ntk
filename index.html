@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="vi" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyFlow - Quản lý Kế hoạch Học tập Cá nhân</title>
+    
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Cấu hình Tailwind CSS cho chế độ Dark Mode và Font chữ
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        notion: {
+                            bg: '#F8FAFC',
+                            darkBg: '#0F172A',
+                            cardDark: '#1E293B',
+                            borderDark: '#334155'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Tùy chỉnh thanh cuộn theo phong cách tối giản */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 9999px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+
+        /* Hiệu ứng chuyển đổi mượt cho giao diện */
+        body {
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+        
+        /* Hiệu ứng gạch ngang mượt khi hoàn thành công việc */
+        .task-completed-text {
+            text-decoration: line-through;
+            opacity: 0.55;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white min-h-screen flex flex-col lg:flex-row">
+
+    <!-- ==========================================
+         HEADER DI ĐỘNG (Chỉ hiển thị trên màn hình nhỏ)
+    =========================================== -->
+    <header class="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
+        <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-sm">
+                <i class="fa-solid fa-layer-group text-sm"></i>
+            </div>
+            <span class="font-bold text-lg tracking-tight text-slate-900 dark:text-white">StudyFlow</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="toggleTheme()" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Đổi giao diện Sáng/Tối">
+                <i id="mobile-theme-icon" class="fa-solid fa-moon"></i>
+            </button>
+            <button onclick="toggleMobileSidebar()" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Mở menu">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Lớp phủ mờ khi mở Sidebar trên điện thoại -->
+    <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-30 hidden lg:hidden"></div>
+
+    <!-- ==========================================
+         CỘT 1: SIDEBAR ĐIỀU HƯỚNG BÊN TRÁI (Notion-style)
+    =========================================== -->
+    <aside id="sidebar" class="fixed lg:sticky top-0 left-0 z-40 w-64 h-screen bg-white dark:bg-slate-800 border-r border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between transition-transform duration-300 -translate-x-full lg:translate-x-0 shrink-0">
+        <!-- Phần trên Sidebar: Logo & Menu điều hướng -->
+        <div class="p-5">
+            <!-- Thương hiệu -->
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-700/60">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-base leading-none text-slate-900 dark:text-white tracking-tight">StudyFlow</h1>
+                        <span class="text-[11px] font-medium text-slate-400 dark:text-slate-400">Student Workspace</span>
+                    </div>
+                </div>
+                <button onclick="toggleMobileSidebar()" class="lg:hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Menu chuyển đổi chế độ xem -->
+            <div class="space-y-1">
+                <p class="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Không gian làm việc</p>
+                
+                <button onclick="switchNavigationView('all')" id="nav-all" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
+                    <i class="fa-solid fa-table-columns w-4 text-center"></i>
+                    <span>Dashboard Tổng quan</span>
+                </button>
+
+                <button onclick="switchNavigationView('courses')" id="nav-courses" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-book-open w-4 text-center"></i>
+                        <span>Môn học & Lịch học</span>
+                    </div>
+                    <span id="sidebar-course-count" class="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">0</span>
+                </button>
+
+                <button onclick="switchNavigationView('tasks')" id="nav-tasks" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-list-check w-4 text-center"></i>
+                        <span>Bài tập & Deadline</span>
+                    </div>
+                    <span id="sidebar-pending-count" class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 font-semibold">0</span>
+                </button>
+
+                <button onclick="scrollToFocusZone()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition lg:hidden">
+                    <i class="fa-solid fa-stopwatch w-4 text-center"></i>
+                    <span>Pomodoro & Ghi chú</span>
+                </button>
+            </div>
+
+            <!-- Tóm tắt Mức độ ưu tiên -->
+            <div class="mt-8 space-y-2">
+                <p class="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Chỉ báo Ưu tiên</p>
+                <div class="px-3 py-1.5 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+                    <span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> Ưu tiên Cao</span>
+                    <span id="prio-high-count" class="font-mono font-semibold">0</span>
+                </div>
+                <div class="px-3 py-1.5 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+                    <span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Trung bình</span>
+                    <span id="prio-med-count" class="font-mono font-semibold">0</span>
+                </div>
+                <div class="px-3 py-1.5 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+                    <span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Ưu tiên Thấp</span>
+                    <span id="prio-low-count" class="font-mono font-semibold">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phần dưới Sidebar: Chế độ Sáng/Tối & Khôi phục dữ liệu mẫu -->
+        <div class="p-4 border-t border-slate-200/80 dark:border-slate-700/80 space-y-2 bg-slate-50/50 dark:bg-slate-800/50">
+            <button onclick="toggleTheme()" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:border-indigo-400 transition shadow-2xs">
+                <span class="flex items-center gap-2">
+                    <i id="sidebar-theme-icon" class="fa-solid fa-moon text-indigo-600 dark:text-amber-400"></i>
+                    <span id="sidebar-theme-text">Chế độ Tối (Dark)</span>
+                </span>
+                <i class="fa-solid fa-repeat text-slate-400"></i>
+            </button>
+
+            <button onclick="resetToMockData()" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/60 dark:hover:bg-slate-700/60 transition" title="Đặt lại toàn bộ dữ liệu mẫu để phục vụ thuyết trình">
+                <i class="fa-solid fa-rotate-left"></i>
+                <span>Khôi phục Dữ liệu mẫu</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- ==========================================
+         CỘT 2: NỘI DUNG CHÍNH Ở GIỮA (Main Content)
+    =========================================== -->
+    <main class="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full space-y-8">
+        
+        <!-- Tiêu đề Trang & Ngày tháng hiện tại -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-700/80">
+            <div>
+                <div class="flex items-center gap-2 text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-1">
+                    <i class="fa-regular fa-calendar"></i>
+                    <span id="current-date-display">Đang tải ngày...</span>
+                </div>
+                <h2 id="greeting-title" class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                    Không gian Học tập Cá nhân
+                </h2>
+            </div>
+
+            <div class="flex items-center gap-2.5">
+                <button onclick="toggleCourseForm(true)" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 transition shadow-2xs">
+                    <i class="fa-solid fa-plus text-indigo-600 dark:text-indigo-400"></i>
+                    <span>Thêm môn học</span>
+                </button>
+                <button onclick="focusNewTaskInput()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm shadow-indigo-500/20">
+                    <i class="fa-solid fa-circle-plus"></i>
+                    <span>Tạo bài tập mới</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             1. DASHBOARD TỔNG QUAN (Thống kê & Tiến độ)
+        =========================================== -->
+        <section id="section-dashboard" class="space-y-4">
+            <!-- 3 Thẻ thống kê nhanh -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <!-- Thẻ 1: Tổng số môn học -->
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tổng số môn học</p>
+                        <div class="flex items-baseline gap-2 mt-1.5">
+                            <h3 id="stat-total-courses" class="text-3xl font-bold text-slate-900 dark:text-white">0</h3>
+                            <span id="stat-total-credits" class="text-xs font-medium text-slate-500 dark:text-slate-400">(0 tín chỉ)</span>
+                        </div>
+                    </div>
+                    <div class="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-book-bookmark"></i>
+                    </div>
+                </div>
+
+                <!-- Thẻ 2: Số deadline trong tuần -->
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Deadline trong 7 ngày</p>
+                        <div class="flex items-baseline gap-2 mt-1.5">
+                            <h3 id="stat-weekly-deadlines" class="text-3xl font-bold text-slate-900 dark:text-white">0</h3>
+                            <span id="stat-overdue-badge" class="text-xs font-medium text-amber-600 dark:text-amber-400">cần xử lý</span>
+                        </div>
+                    </div>
+                    <div class="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-bell"></i>
+                    </div>
+                </div>
+
+                <!-- Thẻ 3: Tỷ lệ hoàn thành công việc -->
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tỷ lệ hoàn thành</p>
+                        <div class="flex items-baseline gap-2 mt-1.5">
+                            <h3 id="stat-completion-rate" class="text-3xl font-bold text-indigo-600 dark:text-indigo-400">0%</h3>
+                            <span id="stat-completed-fraction" class="text-xs font-medium text-slate-500 dark:text-slate-400">(0/0 việc)</span>
+                        </div>
+                    </div>
+                    <div class="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thanh tiến độ học tập tổng thể -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                        <h4 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Tiến độ hoàn thành kế hoạch học tập</h4>
+                    </div>
+                    <span id="progress-status-message" class="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                        Hãy bắt đầu hoàn thành các bài tập đầu tiên!
+                    </span>
+                </div>
+                <div class="w-full h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div id="overall-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             2. QUẢN LÝ MÔN HỌC & THỜI KHÓA BIỂU (Courses)
+        =========================================== -->
+        <section id="section-courses" class="space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-graduation-cap text-indigo-600 dark:text-indigo-400"></i>
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Danh sách Môn học & Thời khóa biểu</h3>
+                </div>
+                <button onclick="toggleCourseForm()" id="btn-toggle-course-form" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                    <i class="fa-solid fa-plus"></i> Thêm môn mới
+                </button>
+            </div>
+
+            <!-- Form Thêm Môn Học Mới (Có thể đóng/mở gọn gàng) -->
+            <div id="course-form-container" class="hidden bg-white dark:bg-slate-800 p-5 rounded-xl border-2 border-indigo-500/30 dark:border-indigo-500/40 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-folder-plus text-indigo-600"></i>
+                        Thêm Môn học vào Học kỳ
+                    </h4>
+                    <button onclick="toggleCourseForm(false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <form id="form-add-course" onsubmit="handleAddCourse(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Mã môn học *</label>
+                        <input type="text" id="course-code" required placeholder="VD: AIF101, PRF192" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tên môn học *</label>
+                        <input type="text" id="course-name" required placeholder="VD: Nhập môn Trí tuệ Nhân tạo" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Số tín chỉ *</label>
+                        <input type="number" id="course-credits" required min="1" max="10" value="3" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Phòng học / Link học *</label>
+                        <input type="text" id="course-room" required placeholder="VD: Phòng B.304 hoặc Link Meet" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Mục tiêu điểm số *</label>
+                        <input type="text" id="course-target" required placeholder="VD: 8.5 (Giỏi) hoặc 9.0 (A+)" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div class="sm:col-span-2 lg:col-span-2">
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Lịch học trong tuần (Thời khóa biểu)</label>
+                        <input type="text" id="course-schedule" placeholder="VD: Thứ 2 & Thứ 5 (07:30 - 09:45)" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div class="flex items-end justify-end gap-2">
+                        <button type="button" onclick="toggleCourseForm(false)" class="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                            Hủy
+                        </button>
+                        <button type="submit" class="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-xs">
+                            Lưu môn học
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Danh sách thẻ Môn học -->
+            <div id="courses-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Được render động bằng JavaScript -->
+            </div>
+        </section>
+
+        <!-- ==========================================
+             3. QUẢN LÝ BÀI TẬP & DEADLINE (Task Manager)
+        =========================================== -->
+        <section id="section-tasks" class="space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-list-check text-indigo-600 dark:text-indigo-400"></i>
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Quản lý Bài tập & Deadline</h3>
+                </div>
+                <span class="text-xs text-slate-500 dark:text-slate-400">
+                    Tích vào ô vuông để hoàn thành công việc và cập nhật tiến độ
+                </span>
+            </div>
+
+            <!-- Khung Thêm Bài Tập Mới -->
+            <form id="form-add-task" onsubmit="handleAddTask(event)" class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    <div class="sm:col-span-5">
+                        <label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">Nội dung bài tập / công việc *</label>
+                        <input type="text" id="task-title" required placeholder="Nhập bài tập cần làm..." class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">Môn học *</label>
+                        <select id="task-course" required class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-500">
+                            <!-- Render tự động từ danh sách môn học -->
+                        </select>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">Hạn chót *</label>
+                        <input type="date" id="task-duedate" required class="w-full px-2.5 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">Độ ưu tiên *</label>
+                        <select id="task-priority" class="w-full px-2.5 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-500">
+                            <option value="high">Cao (Đỏ)</option>
+                            <option value="medium" selected>Trung bình (Vàng)</option>
+                            <option value="low">Thấp (Xanh lá)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-1">
+                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-xs">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Thêm vào danh sách</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Thanh Công Cụ Lọc (Filter Bar theo Trạng thái, Mức độ ưu tiên và Môn học) -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-100/80 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                <!-- Lọc theo trạng thái -->
+                <div class="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200/80 dark:border-slate-700">
+                    <button onclick="setTaskStatusFilter('all')" id="filter-status-all" class="status-filter-btn px-3 py-1.5 rounded-md text-xs font-semibold transition bg-indigo-600 text-white">
+                        Tất cả
+                    </button>
+                    <button onclick="setTaskStatusFilter('pending')" id="filter-status-pending" class="status-filter-btn px-3 py-1.5 rounded-md text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        Đang chờ
+                    </button>
+                    <button onclick="setTaskStatusFilter('completed')" id="filter-status-completed" class="status-filter-btn px-3 py-1.5 rounded-md text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        Đã xong
+                    </button>
+                </div>
+
+                <!-- Lọc theo Độ ưu tiên & Môn học -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex items-center gap-1.5 text-xs">
+                        <span class="text-slate-500 dark:text-slate-400"><i class="fa-solid fa-filter"></i> Ưu tiên:</span>
+                        <select id="filter-priority-select" onchange="setTaskPriorityFilter(this.value)" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500">
+                            <option value="all">Tất cả mức độ</option>
+                            <option value="high">Cao (Đỏ)</option>
+                            <option value="medium">Trung bình (Vàng)</option>
+                            <option value="low">Thấp (Xanh lá)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 text-xs">
+                        <span class="text-slate-500 dark:text-slate-400">Môn:</span>
+                        <select id="filter-course-select" onchange="setTaskCourseFilter(this.value)" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500">
+                            <option value="all">Tất cả môn học</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danh sách Bài tập -->
+            <div id="tasks-list" class="space-y-2.5">
+                <!-- Được render động bằng JavaScript -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ==========================================
+         CỘT 3: WIDGET POMODORO & GHI CHÚ NHANH (Right Panel)
+    =========================================== -->
+    <aside id="focus-zone" class="w-full lg:w-80 xl:w-88 shrink-0 p-4 sm:p-6 lg:p-6 bg-white/60 dark:bg-slate-800/40 border-t lg:border-t-0 lg:border-l border-slate-200/80 dark:border-slate-700/80 space-y-6">
+        
+        <!-- 4. ĐỒNG HỒ POMODORO TẬP TRUNG -->
+        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-stopwatch"></i>
+                    </div>
+                    <h3 class="font-bold text-sm text-slate-900 dark:text-white">Đồng hồ Pomodoro</h3>
+                </div>
+                <span id="pomodoro-session-badge" class="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    Phiên: 0
+                </span>
+            </div>
+
+            <!-- Nút chuyển chế độ 25 phút học / 5 phút nghỉ -->
+            <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl mb-5">
+                <button onclick="switchPomodoroMode('work')" id="pomo-mode-work" class="py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow-2xs">
+                    Tập trung (25p)
+                </button>
+                <button onclick="switchPomodoroMode('break')" id="pomo-mode-break" class="py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">
+                    Nghỉ giải lao (5p)
+                </button>
+            </div>
+
+            <!-- Màn hình hiển thị thời gian -->
+            <div class="text-center py-4 px-3 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-100 dark:border-slate-700/70 mb-4">
+                <p id="pomodoro-status-label" class="text-[11px] font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-1">
+                    Sẵn sàng tập trung
+                </p>
+                <div id="pomodoro-display" class="font-mono text-5xl font-bold tracking-wider text-slate-900 dark:text-white my-1">
+                    25:00
+                </div>
+                <!-- Thanh tiến độ phiên Pomodoro -->
+                <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mt-3">
+                    <div id="pomodoro-progress" class="h-full bg-indigo-600 transition-all duration-300" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <!-- Các nút Bắt đầu / Tạm dừng / Đặt lại -->
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="startPomodoro()" id="btn-pomo-start" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-xs">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Bắt đầu</span>
+                </button>
+                <button onclick="pausePomodoro()" id="btn-pomo-pause" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white transition shadow-xs opacity-60 cursor-not-allowed" disabled>
+                    <i class="fa-solid fa-pause"></i>
+                    <span>Tạm dừng</span>
+                </button>
+                <button onclick="resetPomodoro()" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Đặt lại</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 5. GHI CHÚ NHANH (Quick Notes) -->
+        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs flex flex-col">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-note-sticky"></i>
+                    </div>
+                    <h3 class="font-bold text-sm text-slate-900 dark:text-white">Ghi chú nhanh</h3>
+                </div>
+                <span id="note-save-indicator" class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                    <i class="fa-solid fa-check"></i> Đã lưu
+                </span>
+            </div>
+
+            <!-- Sổ nháp tự động lưu (Scratchpad) -->
+            <div class="mb-4">
+                <label class="block text-[11px] font-medium text-slate-400 dark:text-slate-400 mb-1.5">
+                    Sổ nháp cá nhân (Tự động lưu khi gõ):
+                </label>
+                <textarea id="quick-scratchpad" rows="4" oninput="handleScratchpadInput(this.value)" placeholder="Ghi nhanh ý tưởng, công thức hoặc link tài liệu học tập..." class="w-full p-3 text-xs leading-relaxed rounded-xl border border-slate-200 dark:border-slate-700 bg-amber-50/40 dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+            </div>
+
+            <!-- Thêm thẻ dặn dò quan trọng của giảng viên -->
+            <div class="border-t border-slate-100 dark:border-slate-700/70 pt-3">
+                <label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2">
+                    Ghim lời dặn của giảng viên:
+                </label>
+                <form onsubmit="handleAddPinnedNote(event)" class="flex gap-1.5 mb-3">
+                    <input type="text" id="pinned-note-input" required placeholder="Nhập lời dặn quan trọng..." class="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-500">
+                    <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition shrink-0">
+                        Ghim
+                    </button>
+                </form>
+
+                <!-- Danh sách các ghi chú đã ghim -->
+                <div id="pinned-notes-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    <!-- Được render động bằng JavaScript -->
+                </div>
+            </div>
+        </div>
+
+    </aside>
+
+    <!-- ==========================================
+         JAVASCRIPT XỬ LÝ LOGIC TOÀN HỆ THỐNG
+    =========================================== -->
+    <script>
+        /**
+         * KHÓA LƯU TRỮ LOCALSTORAGE
+         * Giúp dữ liệu không bị mất khi người dùng tải lại trang (F5)
+         */
+        const STORAGE_KEYS = {
+            COURSES: 'studyflow_courses_v1',
+            TASKS: 'studyflow_tasks_v1',
+            SCRATCHPAD: 'studyflow_scratchpad_v1',
+            PINNED_NOTES: 'studyflow_pinned_notes_v1',
+            THEME: 'studyflow_theme_v1',
+            POMODORO_COUNT: 'studyflow_pomo_count_v1'
+        };
+
+        /**
+         * TRẠNG THÁI ỨNG DỤNG (APPLICATION STATE)
+         */
+        let courses = [];
+        let tasks = [];
+        let scratchpadText = '';
+        let pinnedNotes = [];
+        let activeStatusFilter = 'all';   // 'all' | 'pending' | 'completed'
+        let activePriorityFilter = 'all'; // 'all' | 'high' | 'medium' | 'low'
+        let activeCourseFilter = 'all';   // 'all' | mã môn học
+
+        /**
+         * TRẠNG THÁI ĐỒNG HỒ POMODORO
+         */
+        const POMODORO_WORK_SECONDS = 25 * 60;
+        const POMODORO_BREAK_SECONDS = 5 * 60;
+        let pomodoroMode = 'work'; // 'work' | 'break'
+        let pomodoroTimeLeft = POMODORO_WORK_SECONDS;
+        let pomodoroTimerInterval = null;
+        let isPomodoroRunning = false;
+        let completedPomodoroSessions = 0;
+
+        /**
+         * Hàm hỗ trợ tạo chuỗi ngày YYYY-MM-DD cộng thêm số ngày tính từ hôm nay
+         * Giúp dữ liệu mẫu (Mock Data) luôn nằm trong tuần hiện tại khi thuyết trình
+         */
+        function getRelativeDateString(offsetDays) {
+            const date = new Date();
+            date.setDate(date.getDate() + offsetDays);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        /**
+         * DỮ LIỆU MẪU (MOCK DATA) GỒM 3 MÔN HỌC, 4 BÀI TẬP VÀ GHI CHÚ THỰC TẾ
+         */
+        function getInitialMockData() {
+            const mockCourses = [
+                {
+                    id: 'course_1',
+                    code: 'AIF101',
+                    name: 'Nhập môn Trí tuệ Nhân tạo',
+                    credits: 3,
+                    room: 'Phòng Gamma 402',
+                    targetGrade: '9.0 (A+)',
+                    schedule: 'Thứ 2 & Thứ 5 (07:30 - 09:45)'
+                },
+                {
+                    id: 'course_2',
+                    code: 'PRF192',
+                    name: 'Cơ sở Lập trình (Programming Fundamentals)',
+                    credits: 3,
+                    room: 'Phòng Lab 205',
+                    targetGrade: '8.5 (A)',
+                    schedule: 'Thứ 3 & Thứ 6 (09:50 - 12:05)'
+                },
+                {
+                    id: 'course_3',
+                    code: 'MAD101',
+                    name: 'Toán Rời rạc (Discrete Mathematics)',
+                    credits: 3,
+                    room: 'https://meet.google.com/studyflow-mad101',
+                    targetGrade: '8.0 (B+)',
+                    schedule: 'Thứ 4 & Thứ 7 (13:30 - 15:45)'
+                }
+            ];
+
+            const mockTasks = [
+                {
+                    id: 'task_1',
+                    title: 'Viết bài thu hoạch khái niệm LLM và AI Fluency sau buổi học đầu tiên',
+                    courseCode: 'AIF101',
+                    dueDate: getRelativeDateString(2),
+                    priority: 'high',
+                    completed: false
+                },
+                {
+                    id: 'task_2',
+                    title: 'Hoàn thành 15 bài tập thực hành cấu trúc rẽ nhánh và vòng lặp',
+                    courseCode: 'PRF192',
+                    dueDate: getRelativeDateString(4),
+                    priority: 'high',
+                    completed: false
+                },
+                {
+                    id: 'task_3',
+                    title: 'Giải đề cương chương Lý thuyết Đồ thị & thuật toán tìm đường đi ngắn nhất',
+                    courseCode: 'MAD101',
+                    dueDate: getRelativeDateString(6),
+                    priority: 'medium',
+                    completed: false
+                },
+                {
+                    id: 'task_4',
+                    title: 'Cài đặt môi trường VS Code, trình biên dịch và cấu hình kho lưu trữ GitHub',
+                    courseCode: 'PRF192',
+                    dueDate: getRelativeDateString(0),
+                    priority: 'low',
+                    completed: true
+                }
+            ];
+
+            const mockScratchpad =
+                '- Tuần này ưu tiên hoàn thành bài thu hoạch môn AIF101 trước tối thứ 5.\n' +
+                '- Nhớ ôn lại độ phức tạp thuật toán trước buổi kiểm tra nhanh trên lớp.\n' +
+                '- Áp dụng 2 phiên Pomodoro (50 phút) mỗi tối để luyện code.';
+
+            const mockPinnedNotes = [
+                {
+                    id: 'note_1',
+                    content: 'Giảng viên AIF101: Nộp bài định dạng PDF trên hệ thống LMS trước 23:59.',
+                    createdAt: 'Quan trọng'
+                },
+                {
+                    id: 'note_2',
+                    content: 'Môn PRF192: Tuần sau kiểm tra thực hành trực tiếp trên máy (không dùng tài liệu).',
+                    createdAt: 'Lịch thi'
+                }
+            ];
+
+            return { mockCourses, mockTasks, mockScratchpad, mockPinnedNotes };
+        }
+
+        /**
+         * KHỞI TẠO ỨNG DỤNG KHI TẢI TRANG
+         */
+        function initializeApplication() {
+            // 1. Khôi phục chế độ Sáng/Tối
+            loadThemePreference();
+
+            // 2. Hiển thị ngày tháng và lời chào trên Header
+            renderHeaderDateAndGreeting();
+
+            // 3. Tải dữ liệu từ LocalStorage (hoặc khởi tạo Mock Data nếu mở lần đầu)
+            loadDataFromLocalStorage();
+
+            // 4. Đặt ngày mặc định cho ô chọn hạn chót bài tập là ngày mai
+            const dueDateInput = document.getElementById('task-duedate');
+            if (dueDateInput) {
+                dueDateInput.value = getRelativeDateString(1);
+            }
+
+            // 5. Render toàn bộ giao diện
+            renderAllComponents();
+        }
+
+        /**
+         * TẢI DỮ LIỆU TỪ LOCALSTORAGE HOẶC TẠO MOCK DATA LẦN ĐẦU
+         */
+        function loadDataFromLocalStorage() {
+            const savedCourses = localStorage.getItem(STORAGE_KEYS.COURSES);
+            const savedTasks = localStorage.getItem(STORAGE_KEYS.TASKS);
+            const savedScratchpad = localStorage.getItem(STORAGE_KEYS.SCRATCHPAD);
+            const savedPinnedNotes = localStorage.getItem(STORAGE_KEYS.PINNED_NOTES);
+            const savedPomoCount = localStorage.getItem(STORAGE_KEYS.POMODORO_COUNT);
+
+            const { mockCourses, mockTasks, mockScratchpad, mockPinnedNotes } = getInitialMockData();
+
+            courses = savedCourses !== null ? JSON.parse(savedCourses) : mockCourses;
+            tasks = savedTasks !== null ? JSON.parse(savedTasks) : mockTasks;
+            scratchpadText = savedScratchpad !== null ? savedScratchpad : mockScratchpad;
+            pinnedNotes = savedPinnedNotes !== null ? JSON.parse(savedPinnedNotes) : mockPinnedNotes;
+            completedPomodoroSessions = savedPomoCount !== null ? parseInt(savedPomoCount, 10) : 2;
+
+            // Lưu lại vào LocalStorage nếu đây là lần đầu mở trang
+            if (savedCourses === null || savedTasks === null) {
+                saveDataToLocalStorage();
+            }
+        }
+
+        /**
+         * LƯU TOÀN BỘ DỮ LIỆU HIỆN TẠI VÀO LOCALSTORAGE
+         */
+        function saveDataToLocalStorage() {
+            localStorage.setItem(STORAGE_KEYS.COURSES, JSON.stringify(courses));
+            localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
+            localStorage.setItem(STORAGE_KEYS.SCRATCHPAD, scratchpadText);
+            localStorage.setItem(STORAGE_KEYS.PINNED_NOTES, JSON.stringify(pinnedNotes));
+            localStorage.setItem(STORAGE_KEYS.POMODORO_COUNT, String(completedPomodoroSessions));
+        }
+
+        /**
+         * KHÔI PHỤC DỮ LIỆU MẪU BAN ĐẦU (DÙNG KHI DEMO / THUYẾT TRÌNH)
+         */
+        function resetToMockData() {
+            if (!confirm('Bạn có muốn khôi phục lại bộ dữ liệu mẫu (3 môn học & 4 bài tập mặc định) để kiểm thử/thuyết trình không?')) {
+                return;
+            }
+            const { mockCourses, mockTasks, mockScratchpad, mockPinnedNotes } = getInitialMockData();
+            courses = mockCourses;
+            tasks = mockTasks;
+            scratchpadText = mockScratchpad;
+            pinnedNotes = mockPinnedNotes;
+            completedPomodoroSessions = 2;
+
+            activeStatusFilter = 'all';
+            activePriorityFilter = 'all';
+            activeCourseFilter = 'all';
+
+            saveDataToLocalStorage();
+            renderAllComponents();
+        }
+
+        /**
+         * RENDER TẤT CẢ CÁC THÀNH PHẦN GIAO DIỆN
+         */
+        function renderAllComponents() {
+            renderDashboardStatistics();
+            renderCoursesSection();
+            populateCourseSelectDropdowns();
+            renderTasksList();
+            renderNotesSection();
+            updatePomodoroDisplay();
+        }
+
+        /**
+         * HIỂN THỊ NGÀY THÁNG HIỆN TẠI VÀ LỜI CHÀO THEO BUỔI
+         */
+        function renderHeaderDateAndGreeting() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const formattedDate = now.toLocaleDateString('vi-VN', options);
+            document.getElementById('current-date-display').textContent = formattedDate;
+
+            const hour = now.getHours();
+            let greeting = 'Chào buổi sáng, chúc bạn một ngày học tập hiệu quả!';
+            if (hour >= 12 && hour < 18) {
+                greeting = 'Chào buổi chiều, cùng hoàn thành các mục tiêu hôm nay nhé!';
+            } else if (hour >= 18) {
+                greeting = 'Chào buổi tối, hãy giữ sự tập trung cho phiên tự học!';
+            }
+            document.getElementById('greeting-title').textContent = greeting;
+        }
+
+        /**
+         * 1. TÍNH TOÁN VÀ HIỂN THỊ DASHBOARD TỔNG QUAN (THỐNG KÊ & THANH TIẾN ĐỘ)
+         */
+        function renderDashboardStatistics() {
+            // Tổng số môn học & tổng số tín chỉ
+            const totalCourses = courses.length;
+            const totalCredits = courses.reduce((sum, course) => sum + Number(course.credits || 0), 0);
+            document.getElementById('stat-total-courses').textContent = totalCourses;
+            document.getElementById('stat-total-credits').textContent = `(${totalCredits} tín chỉ)`;
+            document.getElementById('sidebar-course-count').textContent = totalCourses;
+
+            // Tính số deadline chưa hoàn thành trong vòng 7 ngày tới
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const nextSevenDays = new Date(today);
+            nextSevenDays.setDate(today.getDate() + 7);
+
+            let weeklyDeadlinesCount = 0;
+            let overdueCount = 0;
+
+            tasks.forEach(task => {
+                if (!task.completed && task.dueDate) {
+                    const due = new Date(task.dueDate + 'T00:00:00');
+                    if (due < today) {
+                        overdueCount++;
+                        weeklyDeadlinesCount++;
+                    } else if (due <= nextSevenDays) {
+                        weeklyDeadlinesCount++;
+                    }
+                }
+            });
+
+            document.getElementById('stat-weekly-deadlines').textContent = weeklyDeadlinesCount;
+            const overdueBadge = document.getElementById('stat-overdue-badge');
+            if (overdueCount > 0) {
+                overdueBadge.textContent = `(${overdueCount} quá hạn!)`;
+                overdueBadge.className = 'text-xs font-semibold text-red-600 dark:text-red-400';
+            } else {
+                overdueBadge.textContent = 'trong tuần này';
+                overdueBadge.className = 'text-xs font-medium text-amber-600 dark:text-amber-400';
+            }
+
+            // Tính tỷ lệ hoàn thành công việc (%)
+            const totalTasks = tasks.length;
+            const completedTasks = tasks.filter(task => task.completed).length;
+            const pendingTasks = totalTasks - completedTasks;
+            const completionPercentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+            document.getElementById('stat-completion-rate').textContent = `${completionPercentage}%`;
+            document.getElementById('stat-completed-fraction').textContent = `(${completedTasks}/${totalTasks} việc)`;
+            document.getElementById('sidebar-pending-count').textContent = pendingTasks;
+
+            // Cập nhật thanh tiến độ học tập
+            const progressBar = document.getElementById('overall-progress-bar');
+            progressBar.style.width = `${completionPercentage}%`;
+
+            // Cập nhật thông điệp khích lệ dựa trên tiến độ
+            const statusMessage = document.getElementById('progress-status-message');
+            if (totalTasks === 0) {
+                statusMessage.textContent = 'Chưa có bài tập nào. Hãy thêm bài tập mới để theo dõi!';
+            } else if (completionPercentage === 100) {
+                statusMessage.textContent = 'Xuất sắc! Bạn đã hoàn thành 100% bài tập trong danh sách.';
+            } else if (completionPercentage >= 50) {
+                statusMessage.textContent = `Bạn đã đi được hơn nửa chặng đường (${completionPercentage}%). Tiếp tục phát huy!`;
+            } else {
+                statusMessage.textContent = `Còn ${pendingTasks} công việc đang chờ xử lý. Hãy bật Pomodoro và bắt đầu nhé!`;
+            }
+
+            // Cập nhật bộ đếm ưu tiên ở Sidebar
+            const highCount = tasks.filter(t => !t.completed && t.priority === 'high').length;
+            const medCount = tasks.filter(t => !t.completed && t.priority === 'medium').length;
+            const lowCount = tasks.filter(t => !t.completed && t.priority === 'low').length;
+            document.getElementById('prio-high-count').textContent = highCount;
+            document.getElementById('prio-med-count').textContent = medCount;
+            document.getElementById('prio-low-count').textContent = lowCount;
+        }
+
+        /**
+         * 2. QUẢN LÝ MÔN HỌC: HIỂN THỊ, THÊM MỚI VÀ XÓA MÔN HỌC
+         */
+        function toggleCourseForm(forceState) {
+            const container = document.getElementById('course-form-container');
+            const isHidden = container.classList.contains('hidden');
+            const shouldShow = typeof forceState === 'boolean' ? forceState : isHidden;
+
+            if (shouldShow) {
+                container.classList.remove('hidden');
+                document.getElementById('course-code').focus();
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        function renderCoursesSection() {
+            const grid = document.getElementById('courses-grid');
+            if (courses.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full bg-white dark:bg-slate-800 p-8 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center">
+                        <i class="fa-solid fa-folder-open text-3xl text-slate-300 dark:text-slate-600 mb-2"></i>
+                        <p class="text-sm font-medium text-slate-600 dark:text-slate-300">Chưa có môn học nào được tạo</p>
+                        <p class="text-xs text-slate-400 mt-1">Nhấn "Thêm môn mới" để bắt đầu lập kế hoạch học kỳ của bạn.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = courses.map(course => {
+                // Tính số bài tập thuộc môn học này
+                const courseTasks = tasks.filter(t => t.courseCode === course.code);
+                const doneCourseTasks = courseTasks.filter(t => t.completed).length;
+                const courseProgress = courseTasks.length === 0 ? 0 : Math.round((doneCourseTasks / courseTasks.length) * 100);
+
+                // Kiểm tra xem Phòng học/Link học có phải là đường dẫn URL hay không
+                const isOnlineLink = course.room.startsWith('http://') || course.room.startsWith('https://');
+                const roomDisplayHtml = isOnlineLink
+                    ? `<a href="${escapeHtml(course.room)}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 hover:underline truncate inline-flex items-center gap-1">
+                        <i class="fa-solid fa-video text-[11px]"></i> Phòng học trực tuyến
+                       </a>`
+                    : `<span class="truncate"><i class="fa-solid fa-location-dot text-slate-400 mr-1"></i>${escapeHtml(course.room)}</span>`;
+
+                return `
+                    <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs hover:border-indigo-400/60 dark:hover:border-indigo-500/50 transition flex flex-col justify-between group">
+                        <div>
+                            <!-- Hàng trên: Mã môn, Tín chỉ & Nút xóa -->
+                            <div class="flex items-center justify-between gap-2 mb-2.5">
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-500/30">
+                                        ${escapeHtml(course.code)}
+                                    </span>
+                                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                        ${escapeHtml(String(course.credits))} tín chỉ
+                                    </span>
+                                </div>
+                                <button onclick="handleDeleteCourse('${course.id}')" class="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition p-1" title="Xóa môn học này">
+                                    <i class="fa-regular fa-trash-can text-xs"></i>
+                                </button>
+                            </div>
+
+                            <!-- Tên môn học -->
+                            <h4 class="font-bold text-base text-slate-900 dark:text-white leading-snug mb-3">
+                                ${escapeHtml(course.name)}
+                            </h4>
+
+                            <!-- Thông tin Phòng học, Thời khóa biểu & Mục tiêu điểm -->
+                            <div class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 border-t border-slate-100 dark:border-slate-700/60 pt-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-slate-400 shrink-0">Địa điểm:</span>
+                                    <div class="font-medium text-right truncate">${roomDisplayHtml}</div>
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-slate-400 shrink-0">Lịch học:</span>
+                                    <span class="font-medium text-right truncate">${escapeHtml(course.schedule || 'Chưa cập nhật')}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-slate-400 shrink-0">Mục tiêu:</span>
+                                    <span class="font-semibold text-emerald-600 dark:text-emerald-400">${escapeHtml(course.targetGrade)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tiến độ bài tập của riêng môn học -->
+                        <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60">
+                            <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1.5">
+                                <span>Bài tập đã xong: ${doneCourseTasks}/${courseTasks.length}</span>
+                                <span class="font-mono font-semibold">${courseProgress}%</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div class="h-full bg-indigo-500 rounded-full transition-all duration-300" style="width: ${courseProgress}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function handleAddCourse(event) {
+            event.preventDefault();
+            const codeInput = document.getElementById('course-code');
+            const nameInput = document.getElementById('course-name');
+            const creditsInput = document.getElementById('course-credits');
+            const roomInput = document.getElementById('course-room');
+            const targetInput = document.getElementById('course-target');
+            const scheduleInput = document.getElementById('course-schedule');
+
+            const cleanCode = codeInput.value.trim().toUpperCase();
+
+            // Kiểm tra trùng mã môn
+            if (courses.some(c => c.code.toUpperCase() === cleanCode)) {
+                alert(`Mã môn học "${cleanCode}" đã tồn tại trong danh sách!`);
+                return;
+            }
+
+            const newCourse = {
+                id: 'course_' + Date.now(),
+                code: cleanCode,
+                name: nameInput.value.trim(),
+                credits: parseInt(creditsInput.value, 10) || 3,
+                room: roomInput.value.trim(),
+                targetGrade: targetInput.value.trim(),
+                schedule: scheduleInput.value.trim() || 'Tự học / Linh hoạt'
+            };
+
+            courses.push(newCourse);
+            saveDataToLocalStorage();
+            renderAllComponents();
+
+            // Reset form và đóng khung nhập
+            document.getElementById('form-add-course').reset();
+            toggleCourseForm(false);
+        }
+
+        function handleDeleteCourse(courseId) {
+            const targetCourse = courses.find(c => c.id === courseId);
+            if (!targetCourse) return;
+
+            const relatedTasksCount = tasks.filter(t => t.courseCode === targetCourse.code).length;
+            const confirmMsg = relatedTasksCount > 0
+                ? `Xóa môn "${targetCourse.code} - ${targetCourse.name}" sẽ xóa luôn ${relatedTasksCount} bài tập thuộc môn này. Bạn chắc chắn chứ?`
+                : `Bạn có chắc muốn xóa môn "${targetCourse.code} - ${targetCourse.name}"?`;
+
+            if (!confirm(confirmMsg)) return;
+
+            courses = courses.filter(c => c.id !== courseId);
+            tasks = tasks.filter(t => t.courseCode !== targetCourse.code);
+
+            if (activeCourseFilter === targetCourse.code) {
+                activeCourseFilter = 'all';
+            }
+
+            saveDataToLocalStorage();
+            renderAllComponents();
+        }
+
+        /**
+         * CẬP NHẬT DROPDOWN CHỌN MÔN HỌC TRONG FORM BÀI TẬP & BỘ LỌC
+         */
+        function populateCourseSelectDropdowns() {
+            const taskCourseSelect = document.getElementById('task-course');
+            const filterCourseSelect = document.getElementById('filter-course-select');
+
+            if (courses.length === 0) {
+                taskCourseSelect.innerHTML = `<option value="CHUNG">Chung (Chưa có môn)</option>`;
+            } else {
+                taskCourseSelect.innerHTML = courses.map(c =>
+                    `<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} - ${escapeHtml(c.name)}</option>`
+                ).join('');
+            }
+
+            filterCourseSelect.innerHTML = `<option value="all">Tất cả môn học</option>` +
+                courses.map(c =>
+                    `<option value="${escapeHtml(c.code)}" ${activeCourseFilter === c.code ? 'selected' : ''}>${escapeHtml(c.code)}</option>`
+                ).join('');
+        }
+
+        /**
+         * 3. QUẢN LÝ BÀI TẬP & DEADLINE: THÊM, ĐÁNH DẤU HOÀN THÀNH, LỌC VÀ XÓA
+         */
+        function handleAddTask(event) {
+            event.preventDefault();
+            const titleInput = document.getElementById('task-title');
+            const courseSelect = document.getElementById('task-course');
+            const dueDateInput = document.getElementById('task-duedate');
+            const prioritySelect = document.getElementById('task-priority');
+
+            const newTask = {
+                id: 'task_' + Date.now(),
+                title: titleInput.value.trim(),
+                courseCode: courseSelect.value || 'CHUNG',
+                dueDate: dueDateInput.value,
+                priority: prioritySelect.value,
+                completed: false
+            };
+
+            tasks.unshift(newTask);
+            saveDataToLocalStorage();
+            renderAllComponents();
+
+            // Xóa nội dung ô tiêu đề và giữ nguyên ngày để nhập tiếp nhanh chóng
+            titleInput.value = '';
+            titleInput.focus();
+        }
+
+        function toggleTaskCompletion(taskId) {
+            const targetTask = tasks.find(t => t.id === taskId);
+            if (!targetTask) return;
+
+            targetTask.completed = !targetTask.completed;
+            saveDataToLocalStorage();
+            renderAllComponents();
+        }
+
+        function handleDeleteTask(taskId) {
+            tasks = tasks.filter(t => t.id !== taskId);
+            saveDataToLocalStorage();
+            renderAllComponents();
+        }
+
+        function setTaskStatusFilter(status) {
+            activeStatusFilter = status;
+            // Cập nhật trạng thái nút bấm
+            const buttons = {
+                all: document.getElementById('filter-status-all'),
+                pending: document.getElementById('filter-status-pending'),
+                completed: document.getElementById('filter-status-completed')
+            };
+
+            Object.keys(buttons).forEach(key => {
+                if (key === status) {
+                    buttons[key].className = 'status-filter-btn px-3 py-1.5 rounded-md text-xs font-semibold transition bg-indigo-600 text-white';
+                } else {
+                    buttons[key].className = 'status-filter-btn px-3 py-1.5 rounded-md text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition';
+                }
+            });
+
+            renderTasksList();
+        }
+
+        function setTaskPriorityFilter(priority) {
+            activePriorityFilter = priority;
+            renderTasksList();
+        }
+
+        function setTaskCourseFilter(courseCode) {
+            activeCourseFilter = courseCode;
+            renderTasksList();
+        }
+
+        /**
+         * Hàm định dạng ngày YYYY-MM-DD sang DD/MM/YYYY kèm nhãn thời gian còn lại
+         */
+        function formatDueDateInformation(dateStr, isCompleted) {
+            if (!dateStr) return { formatted: 'Không thời hạn', statusBadge: '' };
+
+            const [year, month, day] = dateStr.split('-');
+            const formatted = `${day}/${month}/${year}`;
+
+            if (isCompleted) {
+                return {
+                    formatted,
+                    statusBadge: `<span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Đã hoàn thành</span>`
+                };
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dueDate = new Date(dateStr + 'T00:00:00');
+            const diffTime = dueDate - today;
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                return {
+                    formatted,
+                    statusBadge: `<span class="text-[11px] font-semibold text-red-600 dark:text-red-400">Quá hạn ${Math.abs(diffDays)} ngày</span>`
+                };
+            } else if (diffDays === 0) {
+                return {
+                    formatted,
+                    statusBadge: `<span class="text-[11px] font-semibold text-amber-600 dark:text-amber-400">Hạn hôm nay!</span>`
+                };
+            } else if (diffDays <= 3) {
+                return {
+                    formatted,
+                    statusBadge: `<span class="text-[11px] font-medium text-amber-600 dark:text-amber-400">Còn ${diffDays} ngày</span>`
+                };
+            } else {
+                return {
+                    formatted,
+                    statusBadge: `<span class="text-[11px] text-slate-400">Còn ${diffDays} ngày</span>`
+                };
+            }
+        }
+
+        /**
+         * Render danh sách bài tập sau khi áp dụng các bộ lọc
+         */
+        function renderTasksList() {
+            const listContainer = document.getElementById('tasks-list');
+
+            // Lọc danh sách công việc theo trạng thái, mức độ ưu tiên và môn học
+            const filteredTasks = tasks.filter(task => {
+                const matchStatus =
+                    activeStatusFilter === 'all' ||
+                    (activeStatusFilter === 'pending' && !task.completed) ||
+                    (activeStatusFilter === 'completed' && task.completed);
+
+                const matchPriority =
+                    activePriorityFilter === 'all' || task.priority === activePriorityFilter;
+
+                const matchCourse =
+                    activeCourseFilter === 'all' || task.courseCode === activeCourseFilter;
+
+                return matchStatus && matchPriority && matchCourse;
+            });
+
+            if (filteredTasks.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="bg-white dark:bg-slate-800 p-8 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center">
+                        <i class="fa-solid fa-clipboard-check text-3xl text-slate-300 dark:text-slate-600 mb-2"></i>
+                        <p class="text-sm font-medium text-slate-600 dark:text-slate-300">Không tìm thấy công việc phù hợp với bộ lọc</p>
+                        <p class="text-xs text-slate-400 mt-1">Hãy thử đổi bộ lọc hoặc thêm bài tập mới ở khung phía trên.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Cấu hình màu sắc trực quan cho 3 mức độ ưu tiên (Đỏ: Cao, Vàng: Trung bình, Xanh lá: Thấp)
+            const priorityConfigs = {
+                high: {
+                    label: 'Ưu tiên Cao',
+                    badgeClass: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50',
+                    dotClass: 'bg-red-500'
+                },
+                medium: {
+                    label: 'Trung bình',
+                    badgeClass: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50',
+                    dotClass: 'bg-amber-500'
+                },
+                low: {
+                    label: 'Ưu tiên Thấp',
+                    badgeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/50',
+                    dotClass: 'bg-emerald-500'
+                }
+            };
+
+            listContainer.innerHTML = filteredTasks.map(task => {
+                const prio = priorityConfigs[task.priority] || priorityConfigs.medium;
+                const dueInfo = formatDueDateInformation(task.dueDate, task.completed);
+
+                return `
+                    <div class="bg-white dark:bg-slate-800 px-4 py-3.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs hover:border-indigo-400/60 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-start sm:items-center gap-3.5 min-w-0">
+                            <!-- Checkbox hoàn thành -->
+                            <input
+                                type="checkbox"
+                                ${task.completed ? 'checked' : ''}
+                                onchange="toggleTaskCompletion('${task.id}')"
+                                class="mt-1 sm:mt-0 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
+                            >
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100 break-words ${task.completed ? 'task-completed-text' : ''}">
+                                    ${escapeHtml(task.title)}
+                                </p>
+                                <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                                    <!-- Mã môn học -->
+                                    <span class="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
+                                        ${escapeHtml(task.courseCode)}
+                                    </span>
+
+                                    <!-- Badge Mức độ ưu tiên -->
+                                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border ${prio.badgeClass}">
+                                        <span class="w-1.5 h-1.5 rounded-full ${prio.dotClass}"></span>
+                                        ${prio.label}
+                                    </span>
+
+                                    <!-- Ngày hạn chót -->
+                                    <span class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                        <i class="fa-regular fa-clock"></i>
+                                        Hạn: ${dueInfo.formatted}
+                                    </span>
+
+                                    <!-- Trạng thái thời gian -->
+                                    ${dueInfo.statusBadge}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nút xóa bài tập -->
+                        <div class="flex items-center justify-end shrink-0">
+                            <button onclick="handleDeleteTask('${task.id}')" class="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition" title="Xóa công việc">
+                                <i class="fa-regular fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * 4. LOGIC ĐỒNG HỒ POMODORO (25 PHÚT HỌC - 5 PHÚT NGHỈ)
+         */
+        function updatePomodoroDisplay() {
+            const minutes = String(Math.floor(pomodoroTimeLeft / 60)).padStart(2, '0');
+            const seconds = String(pomodoroTimeLeft % 60).padStart(2, '0');
+            document.getElementById('pomodoro-display').textContent = `${minutes}:${seconds}`;
+            document.getElementById('pomodoro-session-badge').textContent = `Phiên: ${completedPomodoroSessions}`;
+
+            const totalSeconds = pomodoroMode === 'work' ? POMODORO_WORK_SECONDS : POMODORO_BREAK_SECONDS;
+            const progressPercent = Math.round((pomodoroTimeLeft / totalSeconds) * 100);
+            document.getElementById('pomodoro-progress').style.width = `${progressPercent}%`;
+        }
+
+        function switchPomodoroMode(mode) {
+            pausePomodoro();
+            pomodoroMode = mode;
+            pomodoroTimeLeft = mode === 'work' ? POMODORO_WORK_SECONDS : POMODORO_BREAK_SECONDS;
+
+            const workBtn = document.getElementById('pomo-mode-work');
+            const breakBtn = document.getElementById('pomo-mode-break');
+            const statusLabel = document.getElementById('pomodoro-status-label');
+            const progressBar = document.getElementById('pomodoro-progress');
+
+            if (mode === 'work') {
+                workBtn.className = 'py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow-2xs';
+                breakBtn.className = 'py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition';
+                statusLabel.textContent = 'Sẵn sàng tập trung (25 phút)';
+                statusLabel.className = 'text-[11px] font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-1';
+                progressBar.className = 'h-full bg-indigo-600 transition-all duration-300';
+            } else {
+                breakBtn.className = 'py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-2xs';
+                workBtn.className = 'py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition';
+                statusLabel.textContent = 'Nghỉ giải lao thư giãn (5 phút)';
+                statusLabel.className = 'text-[11px] font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-1';
+                progressBar.className = 'h-full bg-emerald-600 transition-all duration-300';
+            }
+
+            updatePomodoroDisplay();
+        }
+
+        function startPomodoro() {
+            if (isPomodoroRunning) return;
+            isPomodoroRunning = true;
+
+            const startBtn = document.getElementById('btn-pomo-start');
+            const pauseBtn = document.getElementById('btn-pomo-pause');
+            const statusLabel = document.getElementById('pomodoro-status-label');
+
+            startBtn.disabled = true;
+            startBtn.classList.add('opacity-60', 'cursor-not-allowed');
+            pauseBtn.disabled = false;
+            pauseBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+
+            statusLabel.textContent = pomodoroMode === 'work' ? 'Đang trong phiên tập trung...' : 'Đang nghỉ giải lao...';
+
+            pomodoroTimerInterval = setInterval(() => {
+                if (pomodoroTimeLeft > 0) {
+                    pomodoroTimeLeft--;
+                    updatePomodoroDisplay();
+                } else {
+                    completePomodoroSession();
+                }
+            }, 1000);
+        }
+
+        function pausePomodoro() {
+            isPomodoroRunning = false;
+            clearInterval(pomodoroTimerInterval);
+
+            const startBtn = document.getElementById('btn-pomo-start');
+            const pauseBtn = document.getElementById('btn-pomo-pause');
+            const statusLabel = document.getElementById('pomodoro-status-label');
+
+            startBtn.disabled = false;
+            startBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+            pauseBtn.disabled = true;
+            pauseBtn.classList.add('opacity-60', 'cursor-not-allowed');
+
+            statusLabel.textContent = 'Đã tạm dừng đồng hồ';
+        }
+
+        function resetPomodoro() {
+            pausePomodoro();
+            pomodoroTimeLeft = pomodoroMode === 'work' ? POMODORO_WORK_SECONDS : POMODORO_BREAK_SECONDS;
+            document.getElementById('pomodoro-status-label').textContent =
+                pomodoroMode === 'work' ? 'Sẵn sàng tập trung' : 'Sẵn sàng nghỉ giải lao';
+            updatePomodoroDisplay();
+        }
+
+        /**
+         * Xử lý khi đồng hồ Pomodoro đếm ngược về 00:00
+         * Phát âm báo bằng Web Audio API và tự động chuyển đổi giữa Học (25p) và Nghỉ (5p)
+         */
+        function completePomodoroSession() {
+            pausePomodoro();
+            playNotificationBeep();
+
+            if (pomodoroMode === 'work') {
+                completedPomodoroSessions++;
+                saveDataToLocalStorage();
+                alert('Chúc mừng! Bạn đã hoàn thành 25 phút tập trung. Hãy nghỉ giải lao 5 phút nhé!');
+                switchPomodoroMode('break');
+            } else {
+                alert('Hết giờ nghỉ giải lao 5 phút! Cùng quay lại phiên tập trung mới nhé.');
+                switchPomodoroMode('work');
+            }
+        }
+
+        /**
+         * Phát âm thanh thông báo nhẹ nhàng bằng Web Audio API (không cần file nhạc ngoài)
+         */
+        function playNotificationBeep() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.4);
+            } catch (e) {
+                // Bỏ qua nếu trình duyệt chặn âm thanh tự động
+            }
+        }
+
+        /**
+         * 5. QUẢN LÝ GHI CHÚ NHANH (QUICK NOTES & SCRATCHPAD)
+         */
+        function renderNotesSection() {
+            // Render sổ nháp tự động lưu
+            const scratchpadEl = document.getElementById('quick-scratchpad');
+            if (scratchpadEl.value !== scratchpadText) {
+                scratchpadEl.value = scratchpadText;
+            }
+
+            // Render danh sách thẻ ghi chú dặn dò của giảng viên
+            const pinnedContainer = document.getElementById('pinned-notes-list');
+            if (pinnedNotes.length === 0) {
+                pinnedContainer.innerHTML = `
+                    <p class="text-xs text-slate-400 italic text-center py-2">Chưa có lời dặn nào được ghim.</p>
+                `;
+                return;
+            }
+
+            pinnedContainer.innerHTML = pinnedNotes.map(note => `
+                <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200/70 dark:border-slate-700/70 flex items-start justify-between gap-2 text-xs">
+                    <div class="space-y-1">
+                        <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
+                            ${escapeHtml(note.createdAt)}
+                        </span>
+                        <p class="text-slate-700 dark:text-slate-200 leading-relaxed break-words">
+                            ${escapeHtml(note.content)}
+                        </p>
+                    </div>
+                    <button onclick="handleDeletePinnedNote('${note.id}')" class="text-slate-400 hover:text-red-500 transition shrink-0 p-1" title="Xóa ghi chú">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function handleScratchpadInput(value) {
+            scratchpadText = value;
+            saveDataToLocalStorage();
+
+            const indicator = document.getElementById('note-save-indicator');
+            indicator.innerHTML = `<i class="fa-solid fa-rotate fa-spin"></i> Đang lưu...`;
+            clearTimeout(window.scratchpadTimeout);
+            window.scratchpadTimeout = setTimeout(() => {
+                indicator.innerHTML = `<i class="fa-solid fa-check"></i> Đã lưu`;
+            }, 400);
+        }
+
+        function handleAddPinnedNote(event) {
+            event.preventDefault();
+            const input = document.getElementById('pinned-note-input');
+            const content = input.value.trim();
+            if (!content) return;
+
+            const now = new Date();
+            const timeLabel = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+            pinnedNotes.unshift({
+                id: 'note_' + Date.now(),
+                content,
+                createdAt: `Ghim ${timeLabel}`
+            });
+
+            input.value = '';
+            saveDataToLocalStorage();
+            renderNotesSection();
+        }
+
+        function handleDeletePinnedNote(noteId) {
+            pinnedNotes = pinnedNotes.filter(n => n.id !== noteId);
+            saveDataToLocalStorage();
+            renderNotesSection();
+        }
+
+        /**
+         * CHUYỂN ĐỔI CHẾ ĐỘ SÁNG / TỐI (DARK / LIGHT MODE)
+         */
+        function loadThemePreference() {
+            const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME) || 'light';
+            applyTheme(savedTheme);
+        }
+
+        function toggleTheme() {
+            const htmlEl = document.documentElement;
+            const nextTheme = htmlEl.classList.contains('dark') ? 'light' : 'dark';
+            applyTheme(nextTheme);
+            localStorage.setItem(STORAGE_KEYS.THEME, nextTheme);
+        }
+
+        function applyTheme(theme) {
+            const htmlEl = document.documentElement;
+            const sidebarIcon = document.getElementById('sidebar-theme-icon');
+            const sidebarText = document.getElementById('sidebar-theme-text');
+            const mobileIcon = document.getElementById('mobile-theme-icon');
+
+            if (theme === 'dark') {
+                htmlEl.classList.add('dark');
+                htmlEl.classList.remove('light');
+                if (sidebarIcon) sidebarIcon.className = 'fa-solid fa-sun text-amber-400';
+                if (sidebarText) sidebarText.textContent = 'Chế độ Sáng (Light)';
+                if (mobileIcon) mobileIcon.className = 'fa-solid fa-sun text-amber-400';
+            } else {
+                htmlEl.classList.remove('dark');
+                htmlEl.classList.add('light');
+                if (sidebarIcon) sidebarIcon.className = 'fa-solid fa-moon text-indigo-600';
+                if (sidebarText) sidebarText.textContent = 'Chế độ Tối (Dark)';
+                if (mobileIcon) mobileIcon.className = 'fa-solid fa-moon';
+            }
+        }
+
+        /**
+         * ĐIỀU HƯỚNG SIDEBAR VÀ TIỆN ÍCH GIAO DIỆN
+         */
+        function switchNavigationView(view) {
+            const sectionDashboard = document.getElementById('section-dashboard');
+            const sectionCourses = document.getElementById('section-courses');
+            const sectionTasks = document.getElementById('section-tasks');
+
+            // Reset style các nút điều hướng
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = 'nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition';
+            });
+
+            const activeBtn = document.getElementById(`nav-${view}`);
+            if (activeBtn) {
+                activeBtn.className = 'nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400';
+            }
+
+            if (view === 'all') {
+                sectionDashboard.classList.remove('hidden');
+                sectionCourses.classList.remove('hidden');
+                sectionTasks.classList.remove('hidden');
+            } else if (view === 'courses') {
+                sectionDashboard.classList.remove('hidden');
+                sectionCourses.classList.remove('hidden');
+                sectionTasks.classList.add('hidden');
+            } else if (view === 'tasks') {
+                sectionDashboard.classList.remove('hidden');
+                sectionCourses.classList.add('hidden');
+                sectionTasks.classList.remove('hidden');
+            }
+
+            // Đóng sidebar trên mobile sau khi chọn
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 1024) {
+                toggleMobileSidebar();
+            }
+        }
+
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        function focusNewTaskInput() {
+            switchNavigationView('all');
+            const taskTitleInput = document.getElementById('task-title');
+            taskTitleInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => taskTitleInput.focus(), 300);
+        }
+
+        function scrollToFocusZone() {
+            toggleMobileSidebar();
+            document.getElementById('focus-zone').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        /**
+         * Hàm bảo vệ chống lỗi hiển thị ký tự đặc biệt HTML (XSS Prevention)
+         */
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Khởi chạy ứng dụng ngay khi DOM đã sẵn sàng
+        document.addEventListener('DOMContentLoaded', initializeApplication);
+    </script>
+</body>
+</html>
